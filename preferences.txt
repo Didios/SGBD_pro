@@ -1,0 +1,3 @@
+color_bg:blue
+color_menu:dark blue
+color_button:gold
