@@ -1,1 +1,1 @@
-color_button:goldcolor_bg:bluecolor_txt:black
+color_bg:bluecolor_txt:blackcolor_button:goldfont_style:Helveticafont_size:10

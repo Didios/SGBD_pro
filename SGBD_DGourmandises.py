@@ -4,6 +4,7 @@
 
 from tkinter import Tk, Button, Scrollbar, Frame, Entry, Listbox, StringVar, Label, Checkbutton, BooleanVar, Text, Scale, ttk, Spinbox, Toplevel, PhotoImage, Menu
 from tkinter.messagebox import showerror, showinfo, askyesno, showwarning, askokcancel
+from tkinter.font import Font, families
 from tkinter.colorchooser import askcolor
 import datetime
 
@@ -48,15 +49,15 @@ class SGBD:
         # update couleur dans fichier
         texte = "%s:%s" %(type_, color)
         if type_ == "color_button":
-            texte = "%s:%s\r%s:%s\r%s" %("color_bg", self.option["color_bg"], "color_txt", self.option["color_txt"], texte)
+            texte += "\rcolor_bg:%s\rcolor_txt:%s" %(self.option["color_bg"], self.option["color_txt"])
             for b in self.listeButton: b.configure(bg = color)
             for b in self.listeButtonEph: b.configure(bg = color)
         elif type_ == "color_bg":
-            texte = "%s:%s\r%s:%s\r%s" %("color_button", self.option["color_button"], "color_txt", self.option["color_txt"], texte)
+            texte += "\rcolor_button:%s\rcolor_txt:%s" %(self.option["color_button"], self.option["color_txt"])
             for b in self.listeBg: b.configure(bg = color)
             for b in self.listeBgEph: b.configure(bg = color)
         elif type_ == "color_txt":
-            texte = "%s:%s\r%s:%s\r%s" %("color_button", self.option["color_button"], "color_bg", self.option["color_bg"], texte)
+            texte += "\rcolor_button:%s\rcolor_bg:%s" %(self.option["color_button"], self.option["color_bg"])
             for b in self.listeBg: 
                 if type(b) not in [Tk, Frame]: b.configure(fg = color)
             for b in self.listeBgEph: b.configure(foreground = color)
@@ -65,9 +66,64 @@ class SGBD:
             self.list.configure(fg = color)
             self.barre.configure(fg = color)
 
+        # ajout option font
+        texte += "\rfont_style:%s\rfont_size:%d" %(self.option["font_style"], self.option["font_size"])
         # enregistrement dans fichier
         read.suppr_fichier(self.fichierOpt, False)
         read.add_fichier("", self.fichierOpt, texte)
+        return True
+
+    def ChoiceFont(self):
+
+        def FontChange(event):
+            if not vide(lbFonts.get()): self.font.configure(family = lbFonts.get())
+            if not vide(lbSize.get()): self.font.configure(size = int(lbSize.get()))
+            return True
+
+        def Valider():
+            self.option["font_style"] = lbFonts.get()
+            self.option["font_size"] = lbSize.get()
+            texte = "color_bg:%s\rcolor_txt:%s\rcolor_button:%s" %(self.option["color_bg"], self.option["color_txt"], self.option["color_button"])
+            texte += "\rfont_style:%s\rfont_size:%s" %(self.option["font_style"], self.option["font_size"])
+            
+            read.suppr_fichier(self.fichierOpt, False)
+            read.add_fichier("", self.fichierOpt, texte)
+            fontSelector.destroy()
+            return True
+
+        def Annuler():
+            self.font.configure(family = self.option["font_style"])
+            self.font.configure(size = int(self.option["font_size"]))
+            fontSelector.destroy()
+            return True
+
+        # initialisation fenetre
+        fontSelector = Toplevel(self.root)
+        fontSelector.title("Police d'écriture")
+        fontSelector.iconbitmap("images/icone_font.ico")
+        #placement des font
+        available_fonts = [i for i in families()] + ["Helvetica"]
+        self.root.option_add("*TCombobox*Listbox*Foreground", self.option["color_txt"])
+        lbFonts = MyCombobox(fontSelector, values = available_fonts, state = "readonly", font = self.font)
+        lbSize = MyCombobox(fontSelector, values = [i for i in range(5, 31)], state = "readonly", font = self.font)
+
+        for i in range(len(available_fonts)):
+            if available_fonts[i] == self.option["font_style"] :
+                lbFonts.current(i)
+                break
+        lbSize.current(int(self.option["font_size"]) - 5) 
+
+        lbFonts.bind('<<ComboboxSelected>>', FontChange)
+        lbSize.bind('<<ComboboxSelected>>', FontChange)
+
+        lbFonts.grid(row = 0, column = 0)
+        lbSize.grid(row = 0, column = 1)
+        Button(fontSelector, command = Valider, text = "Ok", bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 0, sticky = "NSEW")
+        Button(fontSelector, command = Annuler, text = "Annuler", bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 1, sticky = "NSEW")
+
+        fontSelector.resizable(width=False, height=False)
+        fontSelector.protocol("WM_DELETE_WINDOW", Annuler)
+        fontSelector.mainloop()
         return True
 
     def Help(self):
@@ -83,19 +139,20 @@ class SGBD:
         self.listeBg += [self.root]
         self.menu = Frame(self.root)
 
+        self.font = Font(family = self.option["font_style"], size = int(self.option["font_size"]))
+
         # création menu
         barremenu = Menu(self.root)
- 
         # creation de l'aide
         barremenu.add_command(label = "Aide", underline = 0, command = self.Help)
- 
         # creation du menu de préférences des couleurs
         choiceColor = Menu(barremenu, tearoff=0)
         barremenu.add_cascade(label = "Couleur", underline = 0, menu = choiceColor)
         choiceColor.add_command(label = "Bouton", underline = 0, command = lambda : self.ChoiceColor("color_button"))
         choiceColor.add_command(label = "Background", underline = 0, command = lambda : self.ChoiceColor("color_bg"))
         choiceColor.add_command(label = "Texte", underline = 0, command = lambda : self.ChoiceColor("color_txt"))
-
+        # création du choix de police
+        barremenu.add_command(label = "Police", underline = 0, command = self.ChoiceFont)
         # afficher le menu
         self.root.config(menu = barremenu)
 
@@ -112,11 +169,11 @@ class SGBD:
         image_ingredient = photo.subsample(2, 2)
 
         # on affiche la barre de menu
-        b1 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"], text = "Client"     , image = image_client, compound = "bottom", command = self.client)
-        b2 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"],text = "Commandes"  , image = image_commande, compound = "bottom", command = self.commande)
-        b3 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"],text = "Gateaux"    , image = image_gateau, compound = "bottom", command = self.gateau)
-        b4 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"],text = "Recettes"   , image = image_recette, compound = "bottom", command = self.brique)
-        b5 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"],text = "Ingrédients", image = image_ingredient, compound = "bottom", command = self.ingredient)
+        b1 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font, anchor = "n", text = "Client", image = image_client, compound = "bottom", command = self.client)
+        b2 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font, anchor = "n", text = "Commandes", image = image_commande, compound = "bottom", command = self.commande)
+        b3 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font, anchor = "n", text = "Gateaux", image = image_gateau, compound = "bottom", command = self.gateau)
+        b4 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font, anchor = "n", text = "Recettes", image = image_recette, compound = "bottom", command = self.brique)
+        b5 = Button(self.menu, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font, anchor = "n", text = "Ingrédients", image = image_ingredient, compound = "bottom", command = self.ingredient)
 
         self.listeButton += [b1, b2, b3, b4, b5]
         for i in range(len(self.listeButton)): self.listeButton[i].grid(row = 0, column = i, sticky="NSEW")
@@ -151,7 +208,8 @@ class SGBD:
                     self.list.delete(i_ligne)
                     i_ligne -= 1
 
-        self.barre = Entry(self.root, textvariable = self.contenue_barre, fg = self.option["color_txt"])
+        self.barre = Entry(self.root, textvariable = self.contenue_barre, 
+                           fg = self.option["color_txt"], font = self.font)
         self.barre.bind("<Return>", recherche)
         self.barre.grid(row = 1, column = 0, columnspan = 2, sticky="EW")
 
@@ -160,7 +218,8 @@ class SGBD:
         scrollbar.grid_propagate(0)
         scrollbar.grid(row = 2, column = 0, sticky="NSW")
 
-        self.list = Listbox(self.root, yscrollcommand = scrollbar.set, fg = self.option["color_txt"])
+        self.list = Listbox(self.root, yscrollcommand = scrollbar.set, 
+                            fg = self.option["color_txt"], font = self.font)
         self.list.grid(row = 2, column = 1, sticky="NSEW")
 
         scrollbar.config(command = self.list.yview)
@@ -170,9 +229,10 @@ class SGBD:
         self.onglet.set("None")
 
         # bouton d'ajout
-        p = Button(self.root, text = "+", command = lambda x=self.onglet: self.ajout(x), bg = self.option["color_button"], fg = self.option["color_txt"])
-        p.grid(row = 3, column = 0, columnspan = 2, sticky="NSEW")
-        self.listeButton += [p]
+        self.addButton = Button(self.root, text = "(+) Ajout", command = lambda x=self.onglet: self.ajout(x), 
+                   bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font)
+        self.addButton.grid(row = 3, column = 0, columnspan = 2, sticky="NSEW")
+        self.listeButton += [self.addButton]
 
         # frame des informations complémentaires
         self.information = Frame(self.root, bg = self.option["color_bg"])
@@ -208,6 +268,7 @@ class SGBD:
             for i in range(len(liste)):
                 texte = str(liste[i][0]) + " | " + liste[i][1] + " " + liste[i][2]
                 self.list.insert(i, texte)
+        self.addButton.configure(text = "(+) Ajout d'un Client")
         return True
 
     def commande(self):
@@ -244,6 +305,7 @@ class SGBD:
                 for j in plus_proche:
                     liste_rapide += "- " + j + "\n"
                 showwarning("Commandes rapides", "Les commandes suivantes sont à faire dans un délai de 24H : \n" + liste_rapide)
+        self.addButton.configure(text = "(+) Ajout d'une Commande")
         return True
 
     def gateau(self):
@@ -260,6 +322,7 @@ class SGBD:
             for i in range(len(liste)):
                 texte = str(liste[i][0]) + " | " + liste[i][1]
                 self.list.insert(i, texte)
+        self.addButton.configure(text = "(+) Ajout d'un Gâteau")
         return True
 
     def brique(self):
@@ -276,6 +339,7 @@ class SGBD:
             for i in range(len(liste)):
                 texte = str(liste[i][0]) + " | " + liste[i][1]
                 self.list.insert(i, texte)
+        self.addButton.configure(text = "(+) Ajout d'une Recette")
         return True
 
     def ingredient(self):
@@ -292,6 +356,7 @@ class SGBD:
             for i in range(len(liste)):
                 texte = str(liste[i][0]) + " | " + liste[i][1]
                 self.list.insert(i, texte)
+        self.addButton.configure(text = "(+) Ajout d'un Ingrédient")
         return True
 
     def ajout(self, onglet):
@@ -300,7 +365,8 @@ class SGBD:
         """
         if self.onglet.get() != "None":
             plus = Toplevel(self.root, bg = self.option["color_bg"])
-            plus.title("Ajout " + onglet.get())
+            if onglet.get() == "Brique" : plus.title("Ajout Recette")
+            else: plus.title("Ajout " + onglet.get())
             note = None
 
             def validation():
@@ -316,7 +382,7 @@ class SGBD:
                 liste = []
 
                 if self.onglet.get() == "Client":
-                    if not self.base.AddClient(nom.get(), prenom.get(), telephone.get(), email.get()): showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifié les conditions suivantes :\n\t- il y a un nom\n\t- il y a un prénom\n\t- il y a un numéro de téléphone ou un e-mail\n\t- s'il y a un numéro de téléphone, celui-ci est possible")
+                    if not self.base.AddClient(nom.get(), prenom.get(), telephone.get(), email.get()): showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifier les conditions suivantes :\n\t- il y a un nom\n\t- il y a un prénom\n\t- il y a un numéro de téléphone ou un e-mail\n\t- s'il y a un numéro de téléphone, celui-ci est possible")
                     else:
                         plus.destroy()
                         self.client()
@@ -326,9 +392,9 @@ class SGBD:
                         i = note.grid_slaves(row = ligne, column = 0)
                         if i != []: liste += [[self.GetNum(i[0].get()), note.grid_slaves(row = ligne, column = 3)[0].get(), note.grid_slaves(row = ligne, column = 4)[0].get(), note.grid_slaves(row = ligne, column = 1)[0].get(), note.grid_slaves(row = ligne, column = 2)[0].get("0.0", "end")]]
                     if vide(clients.get()):
-                        showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifié les conditions suivantes :\n\t- il y a un client\n\t- il y a un prix non-nul\n\t- il y a au moins un gâteau")
+                        showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifier les conditions suivantes :\n\t- il y a un client\n\t- il y a un prix non-nul\n\t- il y a au moins un gâteau")
                     elif not self.base.AddCommande(self.GetNum(clients.get()), prix_total.get(), "%s/%s/%s-%s:%s" %(jour.get(), mois.get(), annee.get(), heure.get(), minute.get()), livraison.get(), soldes.get(), liste): 
-                        showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifié les conditions suivantes :\n\t- il y a un client\n\t- il y a un prix non-nul\n\t- il y a au moins un gâteau")
+                        showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifier les conditions suivantes :\n\t- il y a un client\n\t- il y a un prix non-nul\n\t- il y a au moins un gâteau")
                     else:
                         plus.destroy()
                         self.commande()
@@ -338,7 +404,7 @@ class SGBD:
                         i = espace_brique.grid_slaves(row = ligne, column = 0)
                         if i !=[]: liste += [[self.GetNum(i[0].get()), espace_brique.grid_slaves(row = ligne, column = 1)[0].get()]]
                     if not self.base.AddGateau(type_.get(), nom.get(), nbr_part.get(), prix_part.get()[:-2], prix_assemblage.get(), marge.get()[:3], liste):
-                        showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifié les conditions suivantes :\n\t- il y a un type\n\t- il y a un nom\n\t- le nom est unique\n\t- il y a au moins une recette")
+                        showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifier les conditions suivantes :\n\t- il y a un type\n\t- il y a un nom\n\t- le nom n'existe pas en double\n\t- il y a au moins une recette")
                     else:
                         plus.destroy()
                         self.gateau()
@@ -347,45 +413,46 @@ class SGBD:
                     for ligne in range(1, nbr_ingredient): 
                         i = espace_ingredient.grid_slaves(row = ligne, column = 0)
                         if i != []: liste += [[self.GetNum(i[0].get()), espace_ingredient.grid_slaves(row = ligne, column = 1)[0].get()]]
-                    if not self.base.AddBrique(nom.get(), prix.get(), poid.get(), recette.get("0.0", "end"), liste): showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifié les conditions suivantes :\n\t- il y a un nom\n\t- le nom est unique\n\t- il y a une recette")
+                    if not self.base.AddBrique(nom.get(), prix.get(), poid.get(), recette.get("0.0", "end"), liste): showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifier les conditions suivantes :\n\t- il y a un nom\n\t- le nom n'existe pas en double\n\t- il y a au moins un ingredient")
                     else:
                         plus.destroy()
                         self.brique()
                 elif self.onglet.get() == "Ingredient":
-                    if not self.base.AddIngredient(nom.get(), poid.get(), prix.get(), quantite.get()): showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifié les conditions suivantes :\n\t- il y a un nom\n\t- le nom est unique")
+                    if not self.base.AddIngredient(nom.get(), poid.get(), prix.get(), quantite.get()): showerror("Erreur Formulaire", "Oups, il semble qu'il manque des informations, veuillez vérifier les conditions suivantes :\n\t- il y a un nom\n\t- le nom n'existe pas en double")
                     else:
                         plus.destroy()
                         self.ingredient()
+                return True
 
 
             if self.onglet.get() == "Client":
                 plus.iconbitmap("images/icone_client.ico")
                 # champ nom
-                Label(plus, text = "Nom :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0, sticky = "NSEW")
-                nom = Entry(plus, fg = self.option["color_txt"])
+                Label(plus, text = "Nom :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+                nom = Entry(plus, fg = self.option["color_txt"], font = self.font)
                 nom.grid(row = 1, column = 0, sticky = "NSEW")
 
                 # champ prenom
-                Label(plus, text = "Prénom :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0, sticky = "NSEW")
-                prenom = Entry(plus, fg = self.option["color_txt"])
+                Label(plus, text = "Prénom :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+                prenom = Entry(plus, fg = self.option["color_txt"], font = self.font)
                 prenom.grid(row = 3, column = 0, sticky = "NSEW")
 
                 # champ numero de telephone
-                Label(plus, text = "Numéro de téléphone :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 4, column = 0, sticky = "NSEW")
-                telephone = Entry(plus, fg = self.option["color_txt"])
+                Label(plus, text = "Numéro de téléphone :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 4, column = 0, sticky = "NSEW")
+                telephone = Entry(plus, fg = self.option["color_txt"], font = self.font)
                 telephone.grid(row = 5, column = 0, sticky = "NSEW")
 
                 # champ addresse e-mail
-                Label(plus, text = "Addresse E-mail :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 6, column = 0, sticky = "NSEW")
-                email = Entry(plus, fg = self.option["color_txt"])
+                Label(plus, text = "Addresse E-mail :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 6, column = 0, sticky = "NSEW")
+                email = Entry(plus, fg = self.option["color_txt"], font = self.font)
                 email.grid(row = 7, column = 0, sticky = "NSEW")
 
-                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = 8, column = 0, sticky = "NSEW")
+                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = 8, column = 0, sticky = "NSEW")
                 grid(plus, 9, 1)
             elif self.onglet.get() == "Commande":
                 plus.iconbitmap("images/icone_commande.ico")
                 # on choisit le client
-                Label(plus, text = "Client commanditaire :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0, columnspan = 5)
+                Label(plus, text = "Client commanditaire :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, columnspan = 5, sticky = "NSEW")
 
                 liste_clients = []
                 liste_compose = self.base.GetClients()
@@ -393,50 +460,51 @@ class SGBD:
                     liste_clients += [str(elmt[0]) + " | " + elmt[1] + " " + elmt[2]]
 
                 self.root.option_add("*TCombobox*Listbox*Foreground", self.option["color_txt"])
-                clients = MyCombobox(plus, values = liste_clients, state = "readonly")
-                clients.grid(row = 1, column = 0, columnspan = 5)
+                clients = MyCombobox(plus, values = liste_clients, state = "readonly", font = self.font)
+                clients.grid(row = 1, column = 0, columnspan = 5, sticky = "NSEW")
 
                 # on met la possibilité d'une livraison
-                Label(plus, text = "Addresse de Livraison :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0, columnspan = 4, sticky = "W")
-                livraison = Entry(plus, fg = self.option["color_txt"])
+                Label(plus, text = "Addresse de Livraison :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, columnspan = 4, sticky = "NSW")
+                livraison = Entry(plus, fg = self.option["color_txt"], font = self.font)
                 livraison.insert("0", "Boutique")
-                livraison.grid(row = 3, column = 0, columnspan = 4, sticky = "W")
+                livraison.grid(row = 3, column = 0, columnspan = 4, sticky = "NSW")
 
                 # on demande une date de fin prévu
-                Label(plus, text = "Date limite :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 4, column = 0, columnspan = 5)
-                Label(plus, text = "Heure", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 5, column = 0)
-                Label(plus, text = "minute", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 5, column = 1)
-                Label(plus, text = "Jour", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 5, column = 2)
-                Label(plus, text = "Mois", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 5, column = 3)
-                Label(plus, text = "Année", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 5, column = 4)
+                Label(plus, text = "Date de livraison :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 4, column = 0, columnspan = 5, sticky = "NSEW")
+                Label(plus, text = "Heure :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 5, column = 0, sticky = "NSEW")
+                Label(plus, text = "minute :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 5, column = 1, sticky = "NSEW")
+                Label(plus, text = "Jour :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 5, column = 2, sticky = "NSEW")
+                Label(plus, text = "Mois :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 5, column = 3, sticky = "NSEW")
+                Label(plus, text = "Année :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 5, column = 4, sticky = "NSEW")
                 date = datetime.datetime.now()
-                jour = Spinbox(plus, from_ = 00, to = 31, increment = 1, width = 3, fg = self.option["color_txt"])
+                jour = Spinbox(plus, from_ = 00, to = 31, increment = 1, width = 3, fg = self.option["color_txt"], font = self.font)
                 jour.delete("0", "end")
                 jour.insert("0", date.day)
-                mois = Spinbox(plus, from_ = 00, to = 12, increment = 1, width = 3, fg = self.option["color_txt"])
+                mois = Spinbox(plus, from_ = 00, to = 12, increment = 1, width = 3, fg = self.option["color_txt"], font = self.font)
                 mois.delete("0", "end")
                 mois.insert("0", date.month)
-                annee = Spinbox(plus, from_ = date.year, to = date.year + 10, width = 4, fg = self.option["color_txt"])
-                heure = Spinbox(plus, from_ = 00, to = 23, width = 4, fg = self.option["color_txt"])
+                annee = Spinbox(plus, from_ = date.year, to = date.year + 10, width = 4, fg = self.option["color_txt"], font = self.font)
+                heure = Spinbox(plus, from_ = 00, to = 23, width = 4, fg = self.option["color_txt"], font = self.font)
                 heure.delete("0", "end")
                 heure.insert("0", date.hour)
-                minute = Spinbox(plus, from_ = 00, to = 59, width = 5, fg = self.option["color_txt"])
+                minute = Spinbox(plus, from_ = 00, to = 59, width = 5, fg = self.option["color_txt"], font = self.font)
                 minute.delete("0", "end")
                 minute.insert("0", date.minute)
 
-                heure.grid(row = 6, column = 0)
-                minute.grid(row = 6, column = 1)
-                jour.grid(row = 6, column = 2)
-                mois.grid(row = 6, column = 3)
-                annee.grid(row = 6, column = 4)
+                heure.grid(row = 6, column = 0, sticky = "NSEW")
+                minute.grid(row = 6, column = 1, sticky = "NSEW")
+                jour.grid(row = 6, column = 2, sticky = "NSEW")
+                mois.grid(row = 6, column = 3, sticky = "NSEW")
+                annee.grid(row = 6, column = 4, sticky = "NSEW")
 
                 # on affiche les gateaux
+                Label(plus, text = "Gâteaux disponibles :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 7, column = 0, columnspan = 5, sticky = "NSEW")
                 scroll_gateau = Scrollbar(plus, orient = "vertical", width = 20)
                 scroll_gateau.grid_propagate(0)
-                scroll_gateau.grid(row = 7, column = 0, sticky = "NSEW")
+                scroll_gateau.grid(row = 8, column = 0, sticky = "NSEW")
 
-                liste_gateau = Listbox(plus, yscrollcommand = scroll_gateau.set, height = 20, fg = self.option["color_txt"])
-                liste_gateau.grid(row = 7, column = 1, columnspan = 4, sticky = "NSEW")
+                liste_gateau = Listbox(plus, yscrollcommand = scroll_gateau.set, height = 20, fg = self.option["color_txt"], font = self.font)
+                liste_gateau.grid(row = 8, column = 1, columnspan = 4, sticky = "NSEW")
 
                 scroll_gateau.config(command = liste_gateau.yview)
                     # on insere les gateaux dans la liste
@@ -451,13 +519,13 @@ class SGBD:
                 # on met le prix total
                 prix_total = StringVar()
                 prix_total.set("0.0")
-                Label(note, text = "Gateau", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0, sticky = "NSEW")
-                Label(note, text = "Nbr de part", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 1, sticky = "NSEW")
-                Label(note, text = "personnalisation", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 2, sticky = "NSEW")
-                Label(note, text = "Prix €", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 3, sticky = "NSEW")
-                Label(note, text = "Supplément €", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 4, sticky = "NSEW")
+                Label(note, text = "Gateau :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+                Label(note, text = "Nbr de part :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 1, sticky = "NSEW")
+                Label(note, text = "personnalisation :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 2, sticky = "NSEW")
+                Label(note, text = "Prix (€):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 3, sticky = "NSEW")
+                Label(note, text = "Supplément (€):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 4, sticky = "NSEW")
 
-                Label(note, text = "Prix Total : " + prix_total.get() + " €", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 1, column = 3, columnspan = 2, sticky = "SE")
+                Label(note, text = "Prix Total : " + prix_total.get() + " €", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 3, columnspan = 2, sticky = "SE")
 
                 def change_prix():
                     """
@@ -488,12 +556,13 @@ class SGBD:
                         soldes.config(repeatinterval = 100)
 
                     prix_total.set(str(prix))
-                    Label(note, text = "Prix Total : " + prix_total.get() + " €", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = nbr_ligne, column = 3, columnspan = 2, sticky = "SE")
+                    Label(note, text = "Prix Total : " + prix_total.get() + " €", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = nbr_ligne, column = 3, columnspan = 2, sticky = "NSEW")
+                    return True
 
                 # on met la case de solde
-                Label(plus, text = "Soldes (%):", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 4, sticky = "E")
-                soldes = Spinbox(plus, from_ = 0, to = 100, increment = 1, width = 5, command = lambda x=None : change_prix(), fg = self.option["color_txt"])
-                soldes.grid(row = 3, column = 4, sticky = "E")
+                Label(plus, text = "Soldes (%):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 4, sticky = "NSE")
+                soldes = Spinbox(plus, from_ = 0, to = 100, increment = 1, width = 5, command = lambda x=None : change_prix(), fg = self.option["color_txt"], font = self.font)
+                soldes.grid(row = 3, column = 4, sticky = "NSE")
 
                 # permet de gérer la note finale
                 def ajout_gateau(gateau):
@@ -524,6 +593,7 @@ class SGBD:
                         spin.configure(state = "readonly")
 
                         change_prix()
+                        return True
 
                     def delete_ligne(ligne):
                         """
@@ -533,16 +603,15 @@ class SGBD:
                             elmt.destroy()
 
                         change_prix()
+                        return True
 
                     # regarder si le gateau n'est pas déjà dans note, si c'est le cas, on affiche une erreur = "gateau déjà présent"
-                    liste_gateau = []
                     if note.grid_size()[1] > 2:
                         for i in range(1, note.grid_size()[1] -1):
                             if note.grid_slaves(row = i, column = 0) != []:
-                                liste_gateau += [note.grid_slaves(row = i, column = 0)[0].get()]
-                        if gateau in liste_gateau:
-                            showerror("Présence", "Le gâteau que vous souhaitez ajoutez et déjà présent dans la commande")
-                            return None
+                                if note.grid_slaves(row = i, column = 0)[0].get() == gateau:
+                                    showerror("Présence", "Le gâteau que vous souhaitez ajoutez et déjà présent dans la commande")
+                                    return None
 
                     # on enlève la dernière ligne contenant le prix total
                     taille = note.grid_size()[1]
@@ -550,37 +619,41 @@ class SGBD:
 
                     # on insère la ligne
                         # nom du gateau (pour être récupérer)
-                    nouv_ligne = Entry(note, fg = self.option["color_txt"])
+                    nouv_ligne = Entry(note, fg = self.option["color_txt"], font = self.font)
                     nouv_ligne.insert("0", gateau)
                     nouv_ligne.configure(state = "readonly")
-                    nouv_ligne.grid(row = taille -1, column = 0)
+                    nouv_ligne.grid(row = taille -1, column = 0, sticky = "NSEW")
                         # nombre de parts
-                    Spinbox(note, command = lambda x=int("%d" %(taille-1)) :change_prix_ligne(x), from_ = 1, to = 50, increment = 1, width = 5, fg = self.option["color_txt"]).grid(row = taille-1, column = 1)
+                    Spinbox(note, command = lambda x=int("%d" %(taille-1)) :change_prix_ligne(x), from_ = 1, to = 50, increment = 1, width = 5, 
+                            fg = self.option["color_txt"], font = self.font).grid(row = taille-1, column = 1, sticky = "NSEW")
                         # personnalisation
-                    Text(note, height = 2, width = 20, fg = self.option["color_txt"]).grid(row = taille-1, column = 2)
+                    Text(note, height = 2, width = 20, fg = self.option["color_txt"], font = self.font).grid(row = taille-1, column = 2, sticky = "NSEW")
                         # prix du gateau
-                    nouv_prix = Entry(note, fg = self.option["color_txt"])
+                    nouv_prix = Entry(note, fg = self.option["color_txt"], font = self.font)
                     nouv_prix.insert("0", "0.00")
                     nouv_prix.configure(state = "readonly")
-                    nouv_prix.grid(row = taille -1, column  = 3)
+                    nouv_prix.grid(row = taille -1, column  = 3, sticky = "NSEW")
                         # prix supplémentaires
-                    Spinbox(note, command = lambda x=int("%d" %(taille-1)) :change_prix_ligne(x), from_ = 0.00, to = 100.00, increment = 0.01, width = 10, fg = self.option["color_txt"]).grid(row = taille-1, column = 4)
+                    Spinbox(note, command = lambda x=int("%d" %(taille-1)) :change_prix_ligne(x), from_ = 0.00, to = 100.00, increment = 0.01, width = 10, 
+                            fg = self.option["color_txt"], font = self.font).grid(row = taille-1, column = 4, sticky = "NSEW")
                         # bouton de suppression
-                    Button(note, text = "X", command = lambda x=int("%d" %(taille-1)) : delete_ligne(x), bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = taille-1, column = 5)
+                    Button(note, text = "X", command = lambda x=int("%d" %(taille-1)) : delete_ligne(x), 
+                           bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = taille-1, column = 5, sticky = "NSEW")
 
                     # on met la dernière ligne contenant le prix total
-                    Label(note, text = "Prix Total : " + prix_total.get() + " €", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = taille, column = 3, columnspan = 3, sticky = "SE")
+                    Label(note, text = "Prix Total : " + prix_total.get() + " €", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = taille, column = 3, columnspan = 3, sticky = "NSEW")
                     change_prix_ligne(taille -1)
+                    return True
 
                 liste_gateau.bind("<Double-1>", lambda x :  ajout_gateau(liste_gateau.get(liste_gateau.curselection()[0])))
 
-                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = 8, column = 0, columnspan = 6, sticky = "NSEW")
-                grid(plus, 9, 7)
-            elif self.onglet.get() == "Gateau":                                 ############################################################################################
+                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = 9, column = 0, columnspan = 6, sticky = "NSEW")
+                grid(plus, 10, 7)
+            elif self.onglet.get() == "Gateau":
                 plus.iconbitmap("images/icone_gateau.ico")
                 espace_brique = Frame(plus, width = 200, bg = self.option["color_bg"])
-                Label(espace_brique, text = "Nom", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0, sticky = "NSEW")
-                Label(espace_brique, text = "Poid", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 1, sticky = "NSEW")
+                Label(espace_brique, text = "Nom :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+                Label(espace_brique, text = "Poid (g):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 1, sticky = "NSEW")
 
                 def changer_prix():
                     """
@@ -622,6 +695,7 @@ class SGBD:
                     marge.delete("0", "end")
                     marge.insert("0", "%s points" %(str(point_marge)))
                     marge.configure(state = "readonly")
+                    return True
 
                 def ajout_brique(brique):
                     taille = espace_brique.grid_size()[1] # on détermine la taille de la grille
@@ -633,70 +707,74 @@ class SGBD:
                                 return None
 
                     # on ajoute le nom
-                    name = Entry(espace_brique, fg = self.option["color_txt"])
+                    name = Entry(espace_brique, fg = self.option["color_txt"], font = self.font)
                     name.insert("0", brique)
                     name.configure(state = "readonly")
-                    name.grid(row = taille, column = 0)
+                    name.grid(row = taille, column = 0, sticky = "NSEW")
 
                     # on ajoute le poids
-                    Spinbox(espace_brique, from_ = 1, to = 1000000, increment = 1, command = changer_prix, fg = self.option["color_txt"]).grid(row = taille, column = 1)
+                    Spinbox(espace_brique, from_ = 1, to = 1000000, increment = 1, command = changer_prix, 
+                            fg = self.option["color_txt"], font = self.font).grid(row = taille, column = 1, sticky = "NSEW")
 
                     # on ajoute le bouton
-                    Button(espace_brique, text = "X", command = lambda x=int("%d" %(taille)) : delete_ligne(x), bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = taille, column = 2)
+                    Button(espace_brique, text = "X", command = lambda x=int("%d" %(taille)) : delete_ligne(x), 
+                           bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = taille, column = 2, sticky = "NSEW")
 
                     changer_prix()
+                    return True
 
                 def delete_ligne(ligne):
                     for elmt in espace_brique.grid_slaves(row = ligne):
                         elmt.destroy()
 
                     changer_prix()
+                    return True
 
                 # le type de gateau
-                Label(plus, text = "Type de Gateau :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0)
-                type_ = Entry(plus, fg = self.option["color_txt"])
-                type_.grid(row = 1, column = 0)
+                Label(plus, text = "Type de Gateau :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+                type_ = Entry(plus, fg = self.option["color_txt"], font = self.font)
+                type_.grid(row = 1, column = 0, sticky = "NSEW")
 
                 # le nom du gateau
-                Label(plus, text = "Nom du Gateau (unique) :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0)
-                nom = Entry(plus, fg = self.option["color_txt"])
-                nom.grid(row = 3, column = 0)
+                Label(plus, text = "Nom du Gateau :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+                nom = Entry(plus, fg = self.option["color_txt"], font = self.font)
+                nom.grid(row = 3, column = 0, sticky = "NSEW")
 
                 # le nombre de part
-                Label(plus, text = "Nombre de part :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 4, column = 0)
-                nbr_part = Spinbox(plus, from_ = 1, to = 100, increment = 1, command = changer_prix, fg = self.option["color_txt"])
-                nbr_part.grid(row = 5, column = 0)
+                Label(plus, text = "Nombre de part :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 4, column = 0, sticky = "NSEW")
+                nbr_part = Spinbox(plus, from_ = 1, to = 100, increment = 1, command = changer_prix, fg = self.option["color_txt"], font = self.font)
+                nbr_part.grid(row = 5, column = 0, sticky = "NSEW")
 
                 # le prix de l'assemblage
-                Label(plus, text = "prix de la main d'oeuvre :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 6, column = 0)
-                prix_assemblage = Spinbox(plus, from_ = 0.00, to = 100.00, increment = 0.01, command = changer_prix, fg = self.option["color_txt"])
-                prix_assemblage.grid(row = 7, column = 0)
+                Label(plus, text = "Prix de la main d'oeuvre (€):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 6, column = 0, sticky = "NSEW")
+                prix_assemblage = Spinbox(plus, from_ = 0.00, to = 100.00, increment = 0.01, command = changer_prix, fg = self.option["color_txt"], font = self.font)
+                prix_assemblage.grid(row = 7, column = 0, sticky = "NSEW")
 
                 # Le prix de la part
-                Label(plus, text = "Prix de la part :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 8, column = 0, sticky = "W")
-                prix_part = Entry(plus, width = 10, fg = self.option["color_txt"])
+                Label(plus, text = "Prix de la part (€):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 8, column = 0, sticky = "NSW")
+                prix_part = Entry(plus, width = 10, fg = self.option["color_txt"], font = self.font)
                 prix_part.insert("0", "0.0 €")
                 prix_part.configure(state = "readonly")
-                prix_part.grid(row = 9, column = 0, sticky = "W")
+                prix_part.grid(row = 9, column = 0, sticky = "NSW")
 
                 # la marge
-                Label(plus, text = "marge : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 8, column = 0, sticky = "E")
-                marge = Entry(plus, width = 10, fg = self.option["color_txt"])
+                Label(plus, text = "marge :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 8, column = 0, sticky = "NSE")
+                marge = Entry(plus, width = 10, fg = self.option["color_txt"], font = self.font)
                 marge.insert("0", "0.0 points")
                 marge.configure(state = "readonly")
-                marge.grid(row = 9, column = 0, sticky = "E")
+                marge.grid(row = 9, column = 0, sticky = "NSE")
 
                 # les briques
                     # l'espace necessaires
                 espace_brique.grid(row = 0, column = 3, rowspan = 10, sticky = "NSEW")
                     # l'affichage des briques avec une scrollbar
-                Label(plus, text = "Recettes disponibles :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 1, columnspan = 2)
+                Label(plus, text = "Recettes disponibles :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 1, columnspan = 2, sticky = "NSEW")
                         # scrollbar
                 scroll_brique = Scrollbar(plus, orient = "vertical", width = 20)
                 scroll_brique.grid_propagate(0)
                 scroll_brique.grid(row = 1, column = 1, rowspan = 9, sticky = "NSEW")
                         # listbox
-                liste_brique = Listbox(plus, yscrollcommand = scroll_brique.set, height = 10, fg = self.option["color_txt"])
+                liste_brique = Listbox(plus, yscrollcommand = scroll_brique.set, height = 10, fg = self.option["color_txt"], font = self.font)
                 liste_brique.grid(row = 1, column = 2, rowspan = 9, sticky = "NSEW")
                         # configuration scrollbar
                 scroll_brique.config(command = liste_brique.yview)
@@ -707,31 +785,31 @@ class SGBD:
 
                 liste_brique.bind("<Double-1>", lambda x : ajout_brique(liste_brique.get(liste_brique.curselection()[0])))
 
-                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = 12, column = 0, columnspan = 4, sticky = "NSEW")
+                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = 12, column = 0, columnspan = 4, sticky = "NSEW")
                 grid(plus, 13, 5)
-            elif self.onglet.get() == "Brique":                                 ############################################################################################
+            elif self.onglet.get() == "Brique":
                 plus.iconbitmap("images/icone_recette.ico")
                 # le nom de la brique
-                Label(plus, text = "Nom de la Recette :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0)
-                nom = Entry(plus, fg = self.option["color_txt"])
-                nom.grid(row = 1, column = 0)
+                Label(plus, text = "Nom de la Recette :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+                nom = Entry(plus, fg = self.option["color_txt"], font = self.font)
+                nom.grid(row = 1, column = 0, sticky = "NSEW")
 
                 # le poid de la brique
-                Label(plus, text = "Poids de la préparation :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0)
-                poid = Spinbox(plus, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"])
-                poid.grid(row = 3, column = 0)
+                Label(plus, text = "Poids de la préparation (g):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+                poid = Spinbox(plus, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"], font = self.font)
+                poid.grid(row = 3, column = 0, sticky = "NSEW")
 
                 # espace ingrédients
                 espace_ingredient = Frame(plus, bg = self.option["color_bg"])
                 espace_ingredient.grid(row = 0, column = 3, rowspan = 8, sticky = "NSEW")
-                Label(espace_ingredient, text = "Nom", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0, sticky = "NSEW")
-                Label(espace_ingredient, text = "Poids", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 1, sticky = "NSEW")
-                Label(espace_ingredient, text = "Prix", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 2, sticky = "NSEW")
+                Label(espace_ingredient, text = "Nom :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+                Label(espace_ingredient, text = "Poids (g):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 1, sticky = "NSEW")
+                Label(espace_ingredient, text = "Prix (€):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 2, sticky = "NSEW")
 
                 # le prix
                 prix = StringVar()
                 prix.set("0.00")
-                Label(espace_ingredient, text = "Prix total : %s €" %(prix.get()), bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 1, column = 2, columnspan = 2)
+                Label(espace_ingredient, text = "Prix total : %s €" %(prix.get()), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 2, columnspan = 2, sticky = "NSEW")
 
                 def changer_prix():
                     """
@@ -751,7 +829,8 @@ class SGBD:
                     prix.set(str(prix_))
 
                     espace_ingredient.grid_slaves(row = taille-1, column = 2)[0].destroy()
-                    Label(espace_ingredient, text = "Prix total : %s €" %(prix.get()), bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = taille-1, column = 2, columnspan = 2)
+                    Label(espace_ingredient, text = "Prix total : %s €" %(prix.get()), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = taille-1, column = 2, columnspan = 2, sticky = "NSEW")
+                    return True
 
                 def changer_prix_ligne(ligne):
                     prix_poid = self.base.GetIngredient(self.GetNum(espace_ingredient.grid_slaves(row = ligne, column = 0)[0].get()))
@@ -766,68 +845,71 @@ class SGBD:
                     emplacement.configure(state = "readonly")
 
                     changer_prix()
+                    return True 
 
                 def ajout_ingredient(ingredient):
                     taille = espace_ingredient.grid_size()[1] # on détermine la taille de la grille
 
                     if espace_ingredient.grid_size()[0] > 2:
                         for i in range(1, taille -1):
-                            try:
+                            if espace_ingredient.grid_slaves(row = i, column = 0) != []:
                                 if ingredient == espace_ingredient.grid_slaves(row = i, column = 0)[0].get():
-                                    showerror("Présence", "L'ingrédient que vous souhaitez ajoutez et déjà présente dans la brique")
+                                    showerror("Présence", "L'ingrédient que vous souhaitez ajoutez et déjà présent dans la recette")
                                     return None
-                            except:
-                                pass
 
                     espace_ingredient.grid_slaves(row = taille-1, column = 2)[0].destroy() # on enlève le précédent prix
 
                     # on ajoute le nom
-                    name = Entry(espace_ingredient, fg = self.option["color_txt"])
+                    name = Entry(espace_ingredient, fg = self.option["color_txt"], font = self.font)
                     name.insert("0", ingredient)
                     name.configure(state = "readonly")
-                    name.grid(row = taille -1, column = 0)
-
+                    name.grid(row = taille -1, column = 0, sticky = "NSEW")
+                    
                     # on ajoute le poids
-                    Spinbox(espace_ingredient, from_ = 1, to = 1000000, increment = 1, command = lambda x = int("%d" %(taille-1)): changer_prix_ligne(x), fg = self.option["color_txt"]).grid(row = taille -1, column = 1)
+                    Spinbox(espace_ingredient, from_ = 1, to = 1000000, increment = 1, command = lambda x = int("%d" %(taille-1)): changer_prix_ligne(x), 
+                            fg = self.option["color_txt"], font = self.font).grid(row = taille -1, column = 1, sticky = "NSEW")
 
                     # on affiche le prix
-                    prix = Entry(espace_ingredient, fg = self.option["color_txt"])
+                    prix = Entry(espace_ingredient, fg = self.option["color_txt"], font = self.font)
                     prix.insert("0", "0.00")
                     prix.configure(state = "readonly")
-                    prix.grid(row = taille -1, column = 2)
+                    prix.grid(row = taille -1, column = 2, sticky = "NSEW")
 
                     # on ajoute le bouton
-                    Button(espace_ingredient, text = "X", command = lambda x=int("%d" %(taille -1)) : delete_ligne(x), bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = taille -1, column = 3)
+                    Button(espace_ingredient, text = "X", command = lambda x=int("%d" %(taille -1)) : delete_ligne(x), 
+                           bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = taille -1, column = 3, sticky = "NSEW")
 
                     # le prix
-                    Label(espace_ingredient, text = "Prix total : %s €" %(prix.get()), bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = taille, column = 2, columnspan = 2)
+                    Label(espace_ingredient, text = "Prix total : %s €" %(prix.get()), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = taille, column = 2, columnspan = 2, sticky = "NSEW")
 
                     changer_prix_ligne(taille-1)
+                    return True
 
                 def delete_ligne(ligne):
                     for elmt in espace_ingredient.grid_slaves(row = ligne):
                         elmt.destroy()
 
                     changer_prix()
+                    return True
 
                 # prix assemblage
-                Label(plus, text = "Prix de la main d'oeuvre :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 4, column = 0)
-                prix_assemblage = Spinbox(plus, from_ = 0.00, to = 100.00, increment = 0.01, command = lambda x=None: changer_prix(), fg = self.option["color_txt"])
-                prix_assemblage.grid(row = 5, column = 0)
+                Label(plus, text = "Prix de la main d'oeuvre (€):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 4, column = 0, sticky = "NSEW")
+                prix_assemblage = Spinbox(plus, from_ = 0.00, to = 100.00, increment = 0.01, command = lambda x=None: changer_prix(), fg = self.option["color_txt"], font = self.font)
+                prix_assemblage.grid(row = 5, column = 0, sticky = "NSEW")
 
                 # recette
-                Label(plus, text = "Recette :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 6, column = 0)
-                recette = Text(plus, width = 50, height = 20, fg = self.option["color_txt"])
-                recette.grid(row = 7, column = 0)
+                Label(plus, text = "Recette :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 6, column = 0, sticky = "NSEW")
+                recette = Text(plus, width = 50, height = 20, fg = self.option["color_txt"], font = self.font)
+                recette.grid(row = 7, column = 0, sticky = "NSEW")
 
                 # liste des ingrédients
-                Label(plus, text = "Ingrédients disponibles :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 1, columnspan = 2)
+                Label(plus, text = "Ingrédients disponibles :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 1, columnspan = 2, sticky = "NSEW")
                         # scrollbar
                 scroll_ingredient = Scrollbar(plus, orient = "vertical", width = 20)
                 scroll_ingredient.grid_propagate(0)
                 scroll_ingredient.grid(row = 1, column = 1, rowspan = 7, sticky = "NSEW")
                         # listbox
-                liste_ingredient = Listbox(plus, yscrollcommand = scroll_ingredient.set, height = 20, fg = self.option["color_txt"])
+                liste_ingredient = Listbox(plus, yscrollcommand = scroll_ingredient.set, height = 20, fg = self.option["color_txt"], font = self.font)
                 liste_ingredient.grid(row = 1, column = 2, rowspan = 7, sticky = "NSEW")
                         # configuration scrollbar
                 scroll_ingredient.config(command = liste_ingredient.yview)
@@ -838,31 +920,31 @@ class SGBD:
 
                 liste_ingredient.bind("<Double-1>", lambda x : ajout_ingredient(liste_ingredient.get(liste_ingredient.curselection()[0])))
 
-                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = 8, column = 0, columnspan = 4, sticky = "NSEW")
+                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = 8, column = 0, columnspan = 4, sticky = "NSEW")
                 grid(plus, 9, 4)
             elif self.onglet.get() == "Ingredient":                             ############################################################################################
                 plus.iconbitmap("images/icone_ingredient.ico")
                 # le nom
-                Label(plus, text = "Nom", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0, sticky = "NSEW")
-                nom = Entry(plus, fg = self.option["color_txt"])
+                Label(plus, text = "Nom :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+                nom = Entry(plus, fg = self.option["color_txt"], font = self.font)
                 nom.grid(row = 1, column = 0, sticky = "NSEW")
 
                 # le poid
-                Label(plus, text = "Poid de conditionnement :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0, sticky = "NSEW")
-                poid = Spinbox(plus, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"])
+                Label(plus, text = "Poid de conditionnement (g):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+                poid = Spinbox(plus, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"], font = self.font)
                 poid.grid(row = 3, column = 0, sticky = "NSEW")
 
                 # le prix
-                Label(plus, text = "Prix à l'unité de conditionnement :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 4, column = 0, sticky = "NSEW")
-                prix = Spinbox(plus, from_ = 0.01, to = 100.00, increment = 0.01, fg = self.option["color_txt"])
+                Label(plus, text = "Prix à l'unité de conditionnement (€):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 4, column = 0, sticky = "NSEW")
+                prix = Spinbox(plus, from_ = 0.01, to = 100.00, increment = 0.01, fg = self.option["color_txt"], font = self.font)
                 prix.grid(row = 5, column = 0, sticky = "NSEW")
 
                 # la quantité restante
-                Label(plus, text = "Stock :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 6, column = 0, sticky = "NSEW")
-                quantite = Spinbox(plus, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"])
+                Label(plus, text = "Stock (g):", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 6, column = 0, sticky = "NSEW")
+                quantite = Spinbox(plus, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"], font = self.font)
                 quantite.grid(row = 7, column = 0, sticky = "NSEW")
 
-                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = 8, column = 0, sticky = "NSEW")
+                Button(plus, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = 8, column = 0, sticky = "NSEW")
                 grid(plus, 9, 1)
 
             plus.protocol("WM_DELETE_WINDOW", lambda : on_closing(plus))
@@ -883,6 +965,7 @@ class SGBD:
             elif onglet == "Gateau": self.brique()
             elif onglet == "Brique": self.ingredient()
             self.contenue_barre.set(recherche)
+            return True
 
         self.clean_info()
         self.listeButtonEph = []
@@ -892,9 +975,9 @@ class SGBD:
         if self.onglet.get() == "Client":
             info_base = self.base.GetClient(ID)
             # affichage informations
-            c = Label(self.information, text = "Client : %s %s" %(info_base[0], info_base[1]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            t = Label(self.information, text = "Tel : " + str(info_base[2]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            m = Label(self.information, text = "Mail : %s" %(info_base[3]), bg = self.option["color_bg"], fg = self.option["color_txt"])
+            c = Label(self.information, text = "Client : %s %s" %(info_base[0], info_base[1]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            t = Label(self.information, text = "Tel : " + str(info_base[2]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            m = Label(self.information, text = "Mail : %s" %(info_base[3]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
             self.listeBgEph += [c, t, m]
             # gestion du bouton pour l'historique
             def historique():
@@ -903,21 +986,24 @@ class SGBD:
                 historique_commande.title("Historique de Commande")
 
                 liste_commande = self.base.GetHistorique(ID)
-                for commande in liste_commande:
-                    Button(historique_commande, text = commande[0], command = lambda x="%s" %(commande[0]):clic_recherche("Client", x), bg = self.option["color_button"], fg = self.option["color_txt"]).pack()
-
+                for i in range(len(liste_commande)):
+                    Button(historique_commande, text = liste_commande[i][0], command = lambda x="%s" %(liste_commande[i][0]):clic_recherche("Client", x), 
+                           bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = i, column = 0, sticky = "NSEW")
+                grid(historique_commande, len(liste_commande), 1)
                 historique_commande.mainloop()
-            h = Button(self.information, text = "Historique", command = historique, bg = self.option["color_button"], fg = self.option["color_txt"])
+                return True
+
+            h = Button(self.information, text = "Historique", command = historique, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font)
             self.listeButtonEph += [h]
         elif self.onglet.get() == "Commande":
             info_base = self.base.GetCommande(ID)
             info_client = self.base.GetClient(info_base[0])
             client = "%d | %s" %(info_base[0], info_client[0] + " " + info_client[1])
 
-            c1 = Label(self.information, text = "Client commanditaire : %s" %(client), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            p = Label(self.information, text = "Prix : %s €" %(info_base[1]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            l = Label(self.information, text = "Livraison : %s" %(info_base[2]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            d = Label(self.information, text = "Date de commande : %s" %(info_base[3]), bg = self.option["color_bg"], fg = self.option["color_txt"])
+            c1 = Label(self.information, text = "Client commanditaire : %s" %(client), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            p = Label(self.information, text = "Prix : %s €" %(info_base[1]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            l = Label(self.information, text = "Livraison : %s" %(info_base[2]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            d = Label(self.information, text = "Date de commande : %s" %(info_base[3]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
             self.listeBgEph += [c1, p, l, d]
 
             def finish():
@@ -926,6 +1012,7 @@ class SGBD:
                     showinfo(danger[0], "Quantité restante = %s g" %(danger[1]))
 
                 self.show_information(texte)
+                return True
                 
             def composition():
                 """
@@ -937,35 +1024,37 @@ class SGBD:
 
                 liste_gateaux = self.base.GetCompositionCommande(ID)
                 for gateau in range(len(liste_gateaux)):
-                    Button(compo_commande, text = liste_gateaux[gateau][1], command = lambda x="%s" %(liste_gateaux[gateau][1]):clic_recherche("Commande", x), bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = gateau, column = 0)
-                    
-                    Label(compo_commande, text = "Prix : " + str(liste_gateaux[gateau][2]), bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = gateau, column = 1)
-                    Label(compo_commande, text = "Supplément : " + str(liste_gateaux[gateau][3]), bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = gateau, column = 2)
-                    Label(compo_commande, text = "Nb de parts : " + str(liste_gateaux[gateau][4]), bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = gateau, column = 3)
-                    Label(compo_commande, text = "Personnalisation : " + str(liste_gateaux[gateau][5]), bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = gateau, column = 4)
+                    Button(compo_commande, text = liste_gateaux[gateau][1], command = lambda x="%s" %(liste_gateaux[gateau][1]):clic_recherche("Commande", x), 
+                           bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = gateau, column = 0, sticky = "NSEW")
+                    Label(compo_commande, text = "Prix : " + str(liste_gateaux[gateau][2]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = gateau, column = 1, sticky = "NSEW")
+                    Label(compo_commande, text = "Supplément : " + str(liste_gateaux[gateau][3]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = gateau, column = 2, sticky = "NSEW")
+                    Label(compo_commande, text = "Nb de parts : " + str(liste_gateaux[gateau][4]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = gateau, column = 3, sticky = "NSEW")
+                    Label(compo_commande, text = "Personnalisation : " + str(liste_gateaux[gateau][5]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = gateau, column = 4, sticky = "NSEW")
 
+                grid(compo_commande, len(liste_gateaux), 4)
                 compo_commande.mainloop()
+                return True
 
             # on affiche selon la présence d'une date de fin
             if info_base[4] == None:
-                d1 = Label(self.information, text = "Date limite : %s" %(info_base[5]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-                c = Button(self.information, text = "Commande terminé", command = finish, bg = self.option["color_button"], fg = self.option["color_txt"])
+                d1 = Label(self.information, text = "Date limite : %s" %(info_base[5]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+                c = Button(self.information, text = "Commande terminé", command = finish, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font)
                 self.listeButtonEph += [c]
             else:
-                d1 = Label(self.information, text = "Date de fin : %s" %(info_base[4]), bg = self.option["color_bg"], fg = self.option["color_txt"])
+                d1 = Label(self.information, text = "Date de fin : %s" %(info_base[4]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
             self.listeBgEph += [d1]
 
-            c1 = Button(self.information, text = "Composition", command = composition, bg = self.option["color_button"], fg = self.option["color_txt"])
+            c1 = Button(self.information, text = "Composition", command = composition, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font)
             self.listeButtonEph += [c1]
         elif self.onglet.get() == "Gateau":
             info_base = self.base.GetGateau(ID)
 
-            g = Label(self.information, text = "Gateau : %s" %(info_base[1]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            t = Label(self.information, text = "Type : %s" %(info_base[0]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            n = Label(self.information, text = "Nombre de part : %s" %(info_base[2]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            pm = Label(self.information, text = "Prix de la main d'oeuvre : " + str(info_base[3]) + " €", bg = self.option["color_bg"], fg = self.option["color_txt"])
-            pp = Label(self.information, text = "Prix de la part : " + str(info_base[4]) + " €", bg = self.option["color_bg"], fg = self.option["color_txt"])
-            m = Label(self.information, text = "Marge : " + str(info_base[5]) + " points", bg = self.option["color_bg"], fg = self.option["color_txt"])
+            g = Label(self.information, text = "Gateau : %s" %(info_base[1]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            t = Label(self.information, text = "Type : %s" %(info_base[0]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            n = Label(self.information, text = "Nombre de part : %s" %(info_base[2]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            pm = Label(self.information, text = "Prix de la main d'oeuvre : " + str(info_base[3]) + " €", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            pp = Label(self.information, text = "Prix de la part : " + str(info_base[4]) + " €", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            m = Label(self.information, text = "Marge : " + str(info_base[5]) + " points", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
             self.listeBgEph += [g, t, n, pm, pp, m]
 
             # gestion des éléments du gateau
@@ -976,19 +1065,22 @@ class SGBD:
 
                 liste_briques = self.base.GetConstructionGateau(ID)
                 for brique in range(len(liste_briques)):
-                    Button(compo_gateau, text = liste_briques[brique][1], command = lambda x="%s" %(liste_briques[brique][1]):clic_recherche("Gateau", x), bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = brique, column = 0)
-                    Label(compo_gateau, text = "Poid : " + str(liste_briques[brique][2]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = brique, column = 1)
+                    Button(compo_gateau, text = liste_briques[brique][1], command = lambda x="%s" %(liste_briques[brique][1]):clic_recherche("Gateau", x), 
+                           bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = brique, column = 0, sticky = "NSEW")
+                    Label(compo_gateau, text = "Poid : " + str(liste_briques[brique][2]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = brique, column = 1, sticky = "NSEW")
+                grid(compo_gateau, len(liste_briques), 2)
                 compo_gateau.mainloop()
+                return True
 
-            c = Button(self.information, text = "Construction", command = construction, bg = self.option["color_button"], fg = self.option["color_txt"])
+            c = Button(self.information, text = "Construction", command = construction, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font)
             self.listeButtonEph += [c]
         elif self.onglet.get() == "Brique":
             info_base = self.base.GetBrique(ID)
 
-            n = Label(self.information, text = "Nom : %s" %(info_base[0]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            pr = Label(self.information, text = "Prix : " + str(info_base[1]) + " €", bg = self.option["color_bg"], fg = self.option["color_txt"])
-            po = Label(self.information, text = "Poid : " + str(info_base[2]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"])
-            r = Label(self.information, text = "Recette :\n%s" %(info_base[3]), bg = self.option["color_bg"], fg = self.option["color_txt"])
+            n = Label(self.information, text = "Nom : %s" %(info_base[0]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            pr = Label(self.information, text = "Prix : " + str(info_base[1]) + " €", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            po = Label(self.information, text = "Poid : " + str(info_base[2]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            r = Label(self.information, text = "Recette :\n%s" %(info_base[3]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
             self.listeBgEph += [n, pr, po, r]
 
             def ingredient():
@@ -1001,24 +1093,28 @@ class SGBD:
 
                 liste_ingredients = self.base.GetContenuBrique(ID)
                 for ingredient in range(len(liste_ingredients)):
-                    Button(compo_brique, text = liste_ingredients[ingredient][1], command = lambda x="%s" %(liste_ingredients[ingredient][1]):clic_recherche("Brique", x), bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = ingredient, column = 0)
-                    Label(compo_brique, text = "Poid : " + str(liste_ingredients[ingredient][2]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = ingredient, column = 1)
-
+                    Button(compo_brique, text = liste_ingredients[ingredient][1], command = lambda x="%s" %(liste_ingredients[ingredient][1]):clic_recherche("Brique", x), 
+                           bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = ingredient, column = 0, sticky = "NSEW")
+                    Label(compo_brique, text = "Poid : " + str(liste_ingredients[ingredient][2]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = ingredient, column = 1, sticky = "NSEW")
+                grid(compo_brique, len(liste_ingredients), 2)
                 compo_brique.mainloop()
-            i = Button(self.information, text = "Ingredients", command = ingredient, bg = self.option["color_button"], fg = self.option["color_txt"])
+                return True
+
+            i = Button(self.information, text = "Ingredients", command = ingredient, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font)
             self.listeBgEph += [i]
         elif self.onglet.get() == "Ingredient":
             info_base = self.base.GetIngredient(ID)
 
-            n = Label(self.information, text = "Nom : %s" %(info_base[0]), bg = self.option["color_bg"], fg = self.option["color_txt"])
-            po = Label(self.information, text = "Poid de conditionnement : " + str(info_base[1]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"])
-            pr = Label(self.information, text = "Prix à l'unité : " + str(info_base[2]) + " €", bg = self.option["color_bg"], fg = self.option["color_txt"])
-            q = Label(self.information, text = "Quantité restante : " + str(info_base[3]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"])
-            self.listeBgEph += [n, po, pr, q]
+            n = Label(self.information, text = "Nom : %s" %(info_base[0]), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            po = Label(self.information, text = "Poid de conditionnement : " + str(info_base[1]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            pr = Label(self.information, text = "Prix à l'unité : " + str(info_base[2]) + " €", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            q = Label(self.information, text = "Quantité restante : " + str(info_base[3]) + " g", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            u = Label(self.information, text = "Unité de conditionnement restantes : " + str(round(info_base[3] / info_base[1], 2)), bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font)
+            self.listeBgEph += [n, po, pr, q, u]
 
         onglet = self.onglet.get()
-        m = Button(self.information, text = "Modifier les informations", command = lambda x=[texte, onglet]: self.modification(*x), bg = self.option["color_button"], fg = self.option["color_txt"])
-        s = Button(self.information, text = "Supprimer les informations", command = lambda x=[texte, onglet]: self.suppression(*x), bg = self.option["color_button"], fg = self.option["color_txt"])
+        m = Button(self.information, text = "Modifier les informations", command = lambda x=[texte, onglet]: self.modification(*x), bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font)
+        s = Button(self.information, text = "Supprimer les informations", command = lambda x=[texte, onglet]: self.suppression(*x), bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font)
         self.listeButtonEph += [m, s]
         
         for elmt in self.listeBgEph: elmt.pack()
@@ -1084,226 +1180,234 @@ class SGBD:
             info_base = self.base.GetClient(ID)
 
             # nom
-            Label(modif, text = "Nom : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0)
-            nom = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Nom : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+            nom = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             nom.insert("0", info_base[0])
-            nom.grid(row = 0, column = 1)
+            nom.grid(row = 0, column = 1, sticky = "NSEW")
 
             # prenom
-            Label(modif, text = "Prenom : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 1, column = 0)
-            prenom = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Prenom : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 0, sticky = "NSEW")
+            prenom = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             prenom.insert("0", info_base[1])
-            prenom.grid(row = 1, column = 1)
+            prenom.grid(row = 1, column = 1, sticky = "NSEW")
 
             # telephone
-            Label(modif, text = "Numero de téléphone : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0)
-            tel = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Numero de téléphone : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+            tel = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             if info_base[2] != None: tel.insert("0", str(info_base[2]))
-            tel.grid(row = 2, column = 1)
+            tel.grid(row = 2, column = 1, sticky = "NSEW")
 
             # e-mail
-            Label(modif, text = "Adresse E-mail : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 3, column = 0)
-            mail = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Adresse E-mail : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 3, column = 0, sticky = "NSEW")
+            mail = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             if info_base[3] != None: mail.insert("0", str(info_base[3]))
-            mail.grid(row = 3, column = 1)
+            mail.grid(row = 3, column = 1, sticky = "NSEW")
 
             i = 4
         elif onglet == "Commande":
             info_base = self.base.GetCommande(ID)
 
             # prix
-            Label(modif, text = "Prix de la Commande :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0)
-            prix = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"])
+            Label(modif, text = "Prix de la Commande :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+            prix = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"], font = self.font)
             prix.delete("0", "end")
             prix.insert("0", info_base[1])
-            prix.grid(row = 0, column = 1)
+            prix.grid(row = 0, column = 1, sticky = "NSEW")
 
             # livraison
-            Label(modif, text = "Adresse de livraison : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 1, column = 0)
-            livraison = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Adresse de livraison : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 0, sticky = "NSEW")
+            livraison = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             livraison.insert("0", info_base[2])
-            livraison.grid(row = 1, column = 1)
+            livraison.grid(row = 1, column = 1, sticky = "NSEW")
 
             # date de limite
-            Label(modif, text = "Date Limite : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0)
-            date = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Date Limite : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+            date = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             date.insert("0", info_base[5])
-            date.grid(row = 2, column = 1)
+            date.grid(row = 2, column = 1, sticky = "NSEW")
 
             # liste de gateau
             liste = Frame(modif, bg = self.option["color_bg"])
-            Label(modif, text = "Liste des Gateaux", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 3, column = 0, sticky = "NSEW")
-            Label(liste, text = "Nom :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0, sticky = "NSEW")
-            Label(liste, text = "Prix :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 1, sticky = "NSEW")
-            Label(liste, text = "Supplément :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 2, sticky = "NSEW")
-            Label(liste, text = "Nb de parts :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 3, sticky = "NSEW")
-            Label(liste, text = "Personnalisation :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 4, sticky = "NSEW")
+            Label(modif, text = "Liste des Gateaux", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 3, column = 0, sticky = "NSEW")
+            Label(liste, text = "Nom :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+            Label(liste, text = "Prix :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 1, sticky = "NSEW")
+            Label(liste, text = "Supplément :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 2, sticky = "NSEW")
+            Label(liste, text = "Nb de parts :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 3, sticky = "NSEW")
+            Label(liste, text = "Personnalisation :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 4, sticky = "NSEW")
             info_plus = self.base.GetCompositionCommande(ID)
             for i in range(len(info_plus)):
                 # nom
-                sous_nom = Entry(liste, fg = self.option["color_txt"])
+                sous_nom = Entry(liste, fg = self.option["color_txt"], font = self.font)
                 sous_nom.insert("0", str(info_plus[i][0]) + " | " + info_plus[i][1])
                 sous_nom.configure(state = "readonly")
-                sous_nom.grid(row = i+1, column = 0)
+                sous_nom.grid(row = i+1, column = 0, sticky = "NSEW")
                 # prix
-                prix = Spinbox(liste, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"])
+                prix = Spinbox(liste, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"], font = self.font)
                 prix.delete("0", "end")
                 prix.insert("0", info_plus[i][2])
-                prix.grid(row = i+1, column = 1)
+                prix.grid(row = i+1, column = 1, sticky = "NSEW")
                 # supplement
-                suppl = Spinbox(liste, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"])
+                suppl = Spinbox(liste, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"], font = self.font)
                 suppl.delete("0", "end")
                 suppl.insert("0", info_plus[i][3])
-                suppl.grid(row = i+1, column = 2)
+                suppl.grid(row = i+1, column = 2, sticky = "NSEW")
                 # nbr_parts
-                nbrParts = Spinbox(liste, from_ = 0, to = 1000, increment = 1, fg = self.option["color_txt"])
+                nbrParts = Spinbox(liste, from_ = 0, to = 1000, increment = 1, fg = self.option["color_txt"], font = self.font)
                 nbrParts.delete("0", "end")
                 nbrParts.insert("0", info_plus[i][4])
-                nbrParts.grid(row = i+1, column = 3)
+                nbrParts.grid(row = i+1, column = 3, sticky = "NSEW")
                 # personnalisation
-                perso = Text(liste, width = 50, height = 5, fg = self.option["color_txt"])
+                perso = Text(liste, width = 50, height = 5, fg = self.option["color_txt"], font = self.font)
                 perso.insert("0.0", info_plus[i][5])
-                perso.grid(row = i+1, column = 4)
+                perso.grid(row = i+1, column = 4, sticky = "NSEW")
             liste.grid(row = 3, column = 1)
+            grid(liste, len(info_plus), 5)
 
             i = 4
         elif onglet == "Gateau":
             info_base = self.base.GetGateau(ID)
 
             # type de gateau
-            Label(modif, text = "Type du gateau : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0)
-            typ = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Type du gateau : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+            typ = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             typ.insert("0", info_base[0])
-            typ.grid(row = 0, column = 1)
+            typ.grid(row = 0, column = 1, sticky = "NSEW")
 
             # nom
-            Label(modif, text = "Nom du gateau : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 1, column = 0)
-            nom = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Nom du gateau : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 0, sticky = "NSEW")
+            nom = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             nom.insert("0", info_base[1])
-            nom.grid(row = 1, column = 1)
+            nom.grid(row = 1, column = 1, sticky = "NSEW")
 
             # nombre de part
-            Label(modif, text = "Nombre de part : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0)
-            nb_parts = Spinbox(modif, from_ = 0, to = 100, increment = 1, fg = self.option["color_txt"])
+            Label(modif, text = "Nombre de part : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+            nb_parts = Spinbox(modif, from_ = 0, to = 100, increment = 1, fg = self.option["color_txt"], font = self.font)
             nb_parts.delete("0", "end")
             nb_parts.insert("0", info_base[2])
-            nb_parts.grid(row = 2, column = 1)
+            nb_parts.grid(row = 2, column = 1, sticky = "NSEW")
 
             # prix de l'assemblage
-            Label(modif, text = "Prix de l'assemblage : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 3, column = 0)
-            prix_assemblage = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"])
+            Label(modif, text = "Prix de l'assemblage : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 3, column = 0, sticky = "NSEW")
+            prix_assemblage = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"], font = self.font)
             prix_assemblage.delete("0", "end")
             prix_assemblage.insert("0", info_base[4])
-            prix_assemblage.grid(row = 3, column = 1)
+            prix_assemblage.grid(row = 3, column = 1, sticky = "NSEW")
 
             # prix de la part
-            Label(modif, text = "Prix de la part : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 4, column = 0)
-            prix_part = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"])
+            Label(modif, text = "Prix de la part : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 4, column = 0, sticky = "NSEW")
+            prix_part = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"], font = self.font)
             prix_part.delete("0", "end")
             prix_part.insert("0", info_base[3])
-            prix_part.grid(row = 4, column = 1)
+            prix_part.grid(row = 4, column = 1, sticky = "NSEW")
 
             # marge
-            Label(modif, text = "Marge : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 5, column = 0)
-            prix_part = Spinbox(modif, from_ = 0.0, to = 1000.0, increment = 0.1, fg = self.option["color_txt"])
+            Label(modif, text = "Marge : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 5, column = 0, sticky = "NSEW")
+            prix_part = Spinbox(modif, from_ = 0.0, to = 1000.0, increment = 0.1, fg = self.option["color_txt"], font = self.font)
             prix_part.delete("0", "end")
             prix_part.insert("0", info_base[5])
-            prix_part.grid(row = 5, column = 1)
+            prix_part.grid(row = 5, column = 1, sticky = "NSEW")
 
             # liste des briques
             liste = Frame(modif, bg = self.option["color_bg"])
-            Label(modif, text = "Liste des Briques", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 6, column = 0)
+            Label(modif, text = "Liste des Briques", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 6, column = 0, sticky = "NSEW")
             info_plus = self.base.GetConstructionGateau(ID)
             for i in range(len(info_plus)):
-                sous_nom = Entry(liste, fg = self.option["color_txt"])
+                # le nom
+                sous_nom = Entry(liste, fg = self.option["color_txt"], font = self.font)
                 sous_nom.insert("0", str(info_plus[i][0]) + " | " + info_plus[i][1])
                 sous_nom.configure(state = "readonly")
-                sous_nom.grid(row = i, column = 0)
-                perso = Spinbox(liste, from_ = 0, to = 1000000, increment = 1, fg = self.option["color_txt"])
+                sous_nom.grid(row = i, column = 0, sticky = "NSEW")
+                # la personnalisation
+                perso = Spinbox(liste, from_ = 0, to = 1000000, increment = 1, fg = self.option["color_txt"], font = self.font)
                 perso.delete("0", "end")
                 perso.insert("0", info_plus[i][2])
-                perso.grid(row = i, column = 1)
-            liste.grid(row = 6, column = 1)
+                perso.grid(row = i, column = 1, sticky = "NSEW")
+            liste.grid(row = 6, column = 1, sticky = "NSEW")
+            grid(liste, len(info_plus), 2)
 
             i = 7
         elif onglet == "Brique":
             info_base = self.base.GetBrique(ID)
 
             # nom
-            Label(modif, text = "Nom de la brique : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0)
-            nom = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Nom de la brique : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+            nom = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             nom.insert("0", info_base[0])
-            nom.grid(row = 0, column = 1)
+            nom.grid(row = 0, column = 1, sticky = "NSEW")
 
             # prix
-            Label(modif, text = "Prix de la brique : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 1, column = 0)
-            prix = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"])
+            Label(modif, text = "Prix de la brique : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 0, sticky = "NSEW")
+            prix = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"], font = self.font)
             prix.delete("0", "end")
             prix.insert("0", info_base[1])
-            prix.grid(row = 1, column = 1)
+            prix.grid(row = 1, column = 1, sticky = "NSEW")
 
             # poid
-            Label(modif, text = "Poid de la Brique :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0)
-            poid = Spinbox(modif, from_ = 1, to = 100000, increment = 1, fg = self.option["color_txt"])
+            Label(modif, text = "Poid de la Brique :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+            poid = Spinbox(modif, from_ = 1, to = 100000, increment = 1, fg = self.option["color_txt"], font = self.font)
             poid.delete("0", "end")
             poid.insert("0", info_base[2])
-            poid.grid(row = 2, column = 1)
+            poid.grid(row = 2, column = 1, sticky = "NSEW")
 
             # recette
-            Label(modif, text = "Recette : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 3, column = 0)
-            recette = Text(modif, width = 50, height = 10, fg = self.option["color_txt"])
+            Label(modif, text = "Recette : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 3, column = 0, sticky = "NSEW")
+            recette = Text(modif, width = 50, height = 10, fg = self.option["color_txt"], font = self.font)
             recette.insert("0.0", info_base[3])
-            recette.grid(row = 3, column = 1)
+            recette.grid(row = 3, column = 1, sticky = "NSEW")
 
             # liste des ingredients
             liste = Frame(modif, bg = self.option["color_bg"])
-            Label(modif, text = "Liste des Ingredients", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 4, column = 0)
+            Label(modif, text = "Liste des Ingredients", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 4, column = 0, sticky = "NSEW")
             info_plus = self.base.GetContenuBrique(ID)
             for i in range(len(info_plus)):
-                sous_nom = Entry(liste, fg = self.option["color_txt"])
+                # le nom
+                sous_nom = Entry(liste, fg = self.option["color_txt"], font = self.font)
                 sous_nom.insert("0", str(info_plus[i][0]) + " | " + info_plus[i][1])
                 sous_nom.configure(state = "readonly")
-                sous_nom.grid(row = i, column = 0)
-                perso = Spinbox(liste, from_ = 0, to = 1000000, increment = 1, fg = self.option["color_txt"])
+                sous_nom.grid(row = i, column = 0, sticky = "NSEW")
+                # le poid
+                perso = Spinbox(liste, from_ = 0, to = 1000000, increment = 1, fg = self.option["color_txt"], font = self.font)
                 perso.delete("0", "end")
                 perso.insert("0", info_plus[i][2])
-                perso.grid(row = i, column = 1)
-            liste.grid(row = 4, column = 1)
+                perso.grid(row = i, column = 1, sticky = "NSEW")
+            liste.grid(row = 4, column = 1, sticky = "NSEW")
+            grid(liste, len(info_plus), 2)
 
             i = 5
         elif onglet == "Ingredient":
             info_base = self.base.GetIngredient(ID)
 
             # nom
-            Label(modif, text = "Nom de l'ingrédient : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 0, column = 0)
-            nom = Entry(modif, width = 50, fg = self.option["color_txt"])
+            Label(modif, text = "Nom de l'ingrédient : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 0, column = 0, sticky = "NSEW")
+            nom = Entry(modif, width = 50, fg = self.option["color_txt"], font = self.font)
             nom.insert("0", info_base[0])
-            nom.grid(row = 0, column = 1)
+            nom.grid(row = 0, column = 1, sticky = "NSEW")
 
             # poid d'achat
-            Label(modif, text = "Poid de conditionnement :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 1, column = 0)
-            poid = Spinbox(modif, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"])
+            Label(modif, text = "Poid de conditionnement :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 1, column = 0, sticky = "NSEW")
+            poid = Spinbox(modif, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"], font = self.font)
             poid.delete("0", "end")
             poid.insert("0", info_base[1])
-            poid.grid(row = 1, column = 1)
+            poid.grid(row = 1, column = 1, sticky = "NSEW")
 
             # prix d'achat
-            Label(modif, text = "Prix à l'unité : ", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 2, column = 0)
-            prix = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"])
+            Label(modif, text = "Prix à l'unité : ", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 2, column = 0, sticky = "NSEW")
+            prix = Spinbox(modif, from_ = 0.00, to = 1000.00, increment = 0.01, fg = self.option["color_txt"], font = self.font)
             prix.delete("0", "end")
             prix.insert("0", info_base[2])
-            prix.grid(row = 2, column = 1)
+            prix.grid(row = 2, column = 1, sticky = "NSEW")
 
             # quantite restante
-            Label(modif, text = "Stock :", bg = self.option["color_bg"], fg = self.option["color_txt"]).grid(row = 3, column = 0)
-            poid = Spinbox(modif, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"])
+            Label(modif, text = "Stock :", bg = self.option["color_bg"], fg = self.option["color_txt"], font = self.font).grid(row = 3, column = 0, sticky = "NSEW")
+            poid = Spinbox(modif, from_ = 1, to = 1000000, increment = 1, fg = self.option["color_txt"], font = self.font)
             poid.delete("0", "end")
             poid.insert("0", info_base[3])
-            poid.grid(row = 3, column = 1)
+            poid.grid(row = 3, column = 1, sticky = "NSEW")
 
             i = 4
 
-        Button(modif, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"]).grid(row = i, column = 0, columnspan = 2)
+        Button(modif, text = "Valider", command = validation, bg = self.option["color_button"], fg = self.option["color_txt"], font = self.font).grid(row = i, column = 0, columnspan = 2, sticky = "NSEW")
+        grid(modif, i, 2)
         modif.protocol("WM_DELETE_WINDOW", lambda : on_closing(modif))
         modif.mainloop()
         return True
