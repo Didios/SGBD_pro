@@ -1,12 +1,9 @@
-#!"C:\Winpython\python-3.8.5.amd64\python.exe"
-
 # importation du module necessaires
 import sqlite3
-import mariadb
 
 class database:
     # https://docs.python.org/3/library/sqlite3.html
-    def __init__(self, base, module = "sqlite3"):
+    def __init__(self, base):
         """
         méthode constructrice de la classe
         parametres:
@@ -15,23 +12,13 @@ class database:
         """
         self.base = base
 
-        if module == "sqlite3":
-            self.module = module
-        else:
-            self.module = "mariadb"
-
     def test_connexion(self):
         """
         méthode permettant de savoir si la base de données peut-être connectées
         renvoie un booléen
         """
         try:
-            if self.module == "sqlite3":
-                conn = sqlite3.connect(self.base)
-            else:
-                conn = mariadb.connect(
-                user = "root",
-                database=self.base)
+            conn = sqlite3.connect(self.base)
         except:
             return False
 
@@ -42,13 +29,7 @@ class database:
         """
         méthode permettant de se connecter à la base de donnée
         """
-        if self.module == "sqlite3":
-            self.conn = sqlite3.connect(self.base)
-        else:
-            self.conn = mariadb.connect(
-                user="root",
-                database=self.base)
-
+        self.conn = sqlite3.connect(self.base)
         self.cur = self.conn.cursor()
 
     def deconnexion(self):
@@ -64,11 +45,7 @@ class database:
             sql, une chaine de caracteres correspondant à une requete SQL
         """
         self.connexion()
-
-        try:
-            result = self.cur.execute(sql).fetchall()
-        except:
-            result = None
+        result = self.cur.execute(sql).fetchall()
 
         self.conn.commit()
         self.deconnexion()

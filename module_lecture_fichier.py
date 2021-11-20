@@ -1,5 +1,3 @@
-#!"C:\Winpython\python-3.8.5.amd64\python.exe"
-
 # module permettant la lecture, la modification et l'analyse de fichier/répertoire
 # fait par Didier Mathias
 
@@ -50,6 +48,14 @@ def fichier_existe(path):
         return True
     else:
         return False
+
+def openFile(path):
+    """
+    fonction permettant d'ouvrir un fichier
+    parametres:
+        path, le chemin vers le répertoire souhaité sous forme de chaine de caracteres
+    """
+    os.startfile(path)
 
 ############################## obtenir contenu #################################
 
@@ -111,7 +117,8 @@ def remplacer_ligne(path, file, numero, texte):
         numero, un nombre entier étant l'indice de la ligne à remplacer (la première ligne à pour indice 1)
         texte, une chaine de caractères à mettre à la place de la ligne
     """
-    contenu = lire_fichier(path + "/" + file, True)
+    if path != "": contenu = lire_fichier(path + "/" + file, True)
+    else: contenu = lire_fichier(file, True)
     taille = len(contenu)
 
     if numero > taille:
@@ -158,7 +165,9 @@ def add_fichier(path, file, contenu = ""):
         file, une chaine de caracteres avec le nom du fichier
         contenu, une chaine de caracteres à mettre dans le fichier crée
     """
-    with open(path + "/" + file, "x") as fichier:
+    if path == "": completePath = file
+    else: completePath = path + "/" + file
+    with open(completePath, "x") as fichier:
         fichier.write(contenu)
 
 def suppr_fichier(file, verif = True):
@@ -209,10 +218,7 @@ def execute_sql_file(path, file, db):
     renvoie les résultats de la requetes sous forme de liste
     """
     # l'importation de ce module change selon l'utilisation du fichier (directe ou non)
-    try:
-        import module_database as Database
-    except:
-        from modules import module_database as Database
+    import module_database as Database
 
     sql_liste = lire_fichier(path + "/" + file) # on lit le fichier contenant le code SQL
 
